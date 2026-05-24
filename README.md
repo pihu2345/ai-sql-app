@@ -144,7 +144,7 @@ Visit `http://localhost:8000/docs` for interactive Swagger UI.
 
 ---
 ## 🎥 Demo Video
-
+[Click here to watch the demo](https://drive.google.com/file/d/1wAxb5TJx89hQwAuJZBv_hfVxwCEmaHUT/view?usp=drivesdk)
 
 
 ## 📄 License
