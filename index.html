@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI + SQL Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: #2e3248;
+    --accent: #6c63ff;
+    --accent2: #4ade80;
+    --accent3: #f59e0b;
+    --text: #e8eaf6;
+    --text2: #9098b8;
+    --text3: #5c6380;
+    --danger: #f87171;
+    --success: #4ade80;
+    --radius: 10px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px;
+    min-height: 100vh;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 1rem;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 17px; font-weight: 600; color: var(--text);
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 14px; color: var(--text2);
+    transition: all 0.15s;
+    margin-bottom: 4px;
+    border: none; background: transparent; width: 100%; text-align: left;
+  }
+
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: var(--accent); color: #fff; }
+  .nav-item .nav-icon { font-size: 18px; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .base-url-wrap { margin-top: 1rem; }
+  .base-url-wrap label { font-size: 11px; color: var(--text3); display: block; margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .base-url-wrap input {
+    width: 100%; padding: 7px 10px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); font-size: 12px;
+    font-family: monospace;
+  }
+  .base-url-wrap input:focus { outline: none; border-color: var(--accent); }
+
+  /* ── Main ── */
+  .main {
+    margin-left: 220px;
+    flex: 1;
+    padding: 2rem;
+    max-width: calc(100vw - 220px);
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-title {
+    font-size: 22px; font-weight: 600;
+    margin-bottom: 0.3rem;
+  }
+  .page-sub {
+    font-size: 14px; color: var(--text2);
+    margin-bottom: 1.5rem;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .card-label {
+    font-size: 12px; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+
+  /* ── Inputs ── */
+  textarea, input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--font);
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  textarea:focus, input[type="text"]:focus { border-color: var(--accent); }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    cursor: pointer; border: none;
+    transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #7c74ff; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .btn-danger:hover { background: rgba(248,113,113,0.1); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  /* ── Chat ── */
+  .chat-messages {
+    height: 360px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 1rem;
+    background: var(--bg3);
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+
+  .msg {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .msg.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: #fff;
+    border-bottom-right-radius: 3px;
+  }
+
+  .msg.ai {
+    align-self: flex-start;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-bottom-left-radius: 3px;
+  }
+
+  .msg.ai.thinking {
+    color: var(--text3);
+    font-style: italic;
+  }
+
+  .chat-input-row {
+    display: flex; gap: 10px; align-items: flex-end;
+  }
+  .chat-input-row textarea { height: 60px; resize: none; }
+
+  /* ── SQL Runner ── */
+  .sql-textarea { height: 120px; font-family: monospace; font-size: 13px; }
+  
+  .result-table-wrap { overflow-x: auto; margin-top: 12px; }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    background: var(--bg3);
+    padding: 9px 12px;
+    text-align: left;
+    font-weight: 500;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: monospace;
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+
+  /* ── File Upload ── */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 2.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text2);
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(108,99,255,0.06);
+    color: var(--accent);
+  }
+  .drop-zone-icon { font-size: 36px; margin-bottom: 10px; }
+  .drop-zone-text { font-size: 15px; margin-bottom: 4px; }
+  .drop-zone-hint { font-size: 12px; color: var(--text3); }
+
+  .file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .file-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg3);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .file-item-left { display: flex; align-items: center; gap: 10px; }
+  .file-icon { font-size: 20px; }
+  .file-name { font-size: 14px; font-weight: 500; }
+  .file-meta { font-size: 12px; color: var(--text3); }
+  .file-item-right { display: flex; gap: 8px; align-items: center; }
+
+  /* ── Dashboard stats ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem;
+  }
+  .stat-label { font-size: 12px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .stat-val { font-size: 26px; font-weight: 600; color: var(--text); }
+  .stat-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+
+  /* ── NL to SQL ── */
+  .nl-result {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--accent2);
+    white-space: pre-wrap;
+    margin-top: 10px;
+    display: none;
+  }
+
+  /* ── Response / Error ── */
+  .resp-box {
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.7;
+    margin-top: 10px;
+    color: var(--text);
+    white-space: pre-wrap;
+    display: none;
+    border-left: 3px solid var(--accent);
+  }
+  .resp-box.error { border-left-color: var(--danger); color: var(--danger); }
+  .resp-box.success { border-left-color: var(--success); }
+
+  .row { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .row label { font-size: 13px; color: var(--text2); min-width: 120px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  /* ── Tag ── */
+  .tag {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 11px; font-weight: 500;
+    background: rgba(108,99,255,0.15);
+    color: var(--accent);
+    letter-spacing: 0.3px;
+  }
+  .tag.green { background: rgba(74,222,128,0.12); color: var(--accent2); }
+  .tag.amber { background: rgba(245,158,11,0.15); color: var(--accent3); }
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">🤖</div>
+    AI SQL App
+  </div>
+
+  <button class="nav-item active" onclick="showPage('dashboard')">
+    <span class="nav-icon">📊</span> Dashboard
+  </button>
+  <button class="nav-item" onclick="showPage('chat')">
+    <span class="nav-icon">💬</span> AI Chat
+  </button>
+  <button class="nav-item" onclick="showPage('sql')">
+    <span class="nav-icon">🗄️</span> SQL Runner
+  </button>
+  <button class="nav-item" onclick="showPage('nl2sql')">
+    <span class="nav-icon">✨</span> NL → SQL
+  </button>
+  <button class="nav-item" onclick="showPage('files')">
+    <span class="nav-icon">📁</span> File Upload
+  </button>
+  <button class="nav-item" onclick="showPage('users')">
+    <span class="nav-icon">👥</span> Users / Products
+  </button>
+
+  <div class="sidebar-footer">
+    <div class="base-url-wrap">
+      <label>Backend URL</label>
+      <input type="text" id="baseUrl" value="http://localhost:8000" />
+    </div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <p class="page-title">Dashboard</p>
+    <p class="page-sub">Backend ka health aur quick stats</p>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">API Status</div>
+        <div class="stat-val" id="stat-api">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Database</div>
+        <div class="stat-val" id="stat-db">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">LLM</div>
+        <div class="stat-val" id="stat-llm">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">DB Tables</div>
+        <div class="stat-val" id="stat-tables">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Available Endpoints</div>
+      <table>
+        <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag green">POST</span></td><td>/ai/chat</td><td>Groq se AI chat</td></tr>
+          <tr><td><span class="tag green">POST</span></td><td>/ai/nl-to-sql</td><td>Natural language → SQL</td></tr>
+          <tr><td><span class="tag green">POST</span></td><td>/ai/analyze-data</td><td>SQL data ka AI analysis</td></tr>
+          <tr><td><span class="tag green">POST</span></td><td>/sql/execute</td><td>Direct SELECT query</td></tr>
+          <tr><td><span class="tag">GET</span></td><td>/sql/tables</td><td>Tables list</td></tr>
+          <tr><td><span class="tag">GET</span></td><td>/sql/schema</td><td>DB schema</td></tr>
+          <tr><td><span class="tag green">POST</span></td><td>/files/upload</td><td>File upload</td></tr>
+          <tr><td><span class="tag">GET</span></td><td>/files/list</td><td>Uploaded files</td></tr>
+          <tr><td><span class="tag green">POST</span></td><td>/users/</td><td>User create</td></tr>
+          <tr><td><span class="tag green">POST</span></td><td>/products/</td><td>Product create</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <button class="btn btn-primary" onclick="checkHealth()">🔄 Health Check Karo</button>
+  </div>
+
+  <!-- AI CHAT -->
+  <div class="page" id="page-chat">
+    <p class="page-title">AI Chat</p>
+    <p class="page-sub">Groq LLM se baat karo — Hindi ya English dono mein</p>
+
+    <div class="card">
+      <div class="row">
+        <label>Conversation ID</label>
+        <input type="text" id="convId" value="user_001" style="max-width:200px" />
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg ai">Namaste! Main aapka AI assistant hoon. Kuch bhi poochho 🙏</div>
+      </div>
+      <div class="chat-input-row">
+        <textarea id="chatInput" placeholder="Yahan message likho... (Enter = send, Shift+Enter = newline)"></textarea>
+        <button class="btn btn-primary" id="chatSendBtn" onclick="sendChat()">Send ↗</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SQL RUNNER -->
+  <div class="page" id="page-sql">
+    <p class="page-title">SQL Runner</p>
+    <p class="page-sub">Direct SELECT queries chalao aur results dekhho</p>
+
+    <div class="card">
+      <div class="card-label">Query</div>
+      <textarea class="sql-textarea" id="sqlQuery" placeholder="SELECT * FROM users LIMIT 10;"></textarea>
+      <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="runSQL()">▶ Run Query</button>
+        <button class="btn btn-secondary" onclick="loadTables()">📋 Tables List</button>
+        <button class="btn btn-secondary" onclick="loadSchema()">🗂 Schema</button>
+        <button class="btn btn-secondary btn-sm" onclick="setQuery('SELECT * FROM users LIMIT 10;')">users</button>
+        <button class="btn btn-secondary btn-sm" onclick="setQuery('SELECT * FROM products LIMIT 10;')">products</button>
+        <button class="btn btn-secondary btn-sm" onclick="setQuery('SELECT * FROM chat_history LIMIT 10;')">chat_history</button>
+      </div>
+    </div>
+
+    <div class="card" id="sqlResultCard" style="display:none">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+        <div class="card-label" style="margin:0">Result</div>
+        <span id="rowCount" class="tag green"></span>
+      </div>
+      <div class="result-table-wrap" id="sqlResult"></div>
+    </div>
+  </div>
+
+  <!-- NL → SQL -->
+  <div class="page" id="page-nl2sql">
+    <p class="page-title">Natural Language → SQL</p>
+    <p class="page-sub">Hindi/English mein poochho — AI SQL query bana dega</p>
+
+    <div class="card">
+      <div class="card-label">Apna sawaal likho</div>
+      <textarea id="nlInput" rows="3" placeholder="Jaise: 'Saare users jinki email gmail.com se hai' ya 'Sabse mehenga product konsa hai'"></textarea>
+      <div style="margin-top:10px">
+        <button class="btn btn-primary" onclick="convertNLtoSQL()">✨ SQL Generate Karo</button>
+      </div>
+      <div class="nl-result" id="nlResult"></div>
+
+      <div id="nlRunWrap" style="display:none; margin-top:10px">
+        <button class="btn btn-secondary" onclick="runGeneratedSQL()">▶ Yeh SQL Chalao</button>
+      </div>
+    </div>
+
+    <div class="card" id="nlSqlResultCard" style="display:none">
+      <div class="card-label">Query Result</div>
+      <div class="result-table-wrap" id="nlSqlResult"></div>
+    </div>
+  </div>
+
+  <!-- FILE UPLOAD -->
+  <div class="page" id="page-files">
+    <p class="page-title">File Upload</p>
+    <p class="page-sub">Files upload karo — image, PDF, CSV, TXT, JSON support</p>
+
+    <div class="card">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+           ondragover="event.preventDefault(); this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')"
+           ondrop="handleDrop(event)">
+        <div class="drop-zone-icon">📂</div>
+        <div class="drop-zone-text">File yahan drop karo ya click karo</div>
+        <div class="drop-zone-hint">Allowed: JPG, PNG, PDF, TXT, CSV, JSON, XLSX — Max 10 MB</div>
+      </div>
+      <input type="file" id="fileInput" style="display:none" multiple onchange="uploadFiles(this.files)" />
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <div class="card-label" style="margin:0">Uploaded Files</div>
+        <button class="btn btn-secondary btn-sm" onclick="loadFiles()">🔄 Refresh</button>
+      </div>
+      <div class="file-list" id="fileList">
+        <div style="color: var(--text3); font-size:13px; text-align:center; padding:1rem">
+          Files load karne ke liye Refresh dabao
+        </div>
+      </div>
+    </div>
+
+    <div id="fileAnalysisResult" class="resp-box success"></div>
+  </div>
+
+  <!-- USERS / PRODUCTS -->
+  <div class="page" id="page-users">
+    <p class="page-title">Users & Products</p>
+    <p class="page-sub">CRUD operations — create aur list karo</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem">
+
+      <div>
+        <div class="card">
+          <div class="card-label">New User Banao</div>
+          <input type="text" id="userName" placeholder="Naam" style="margin-bottom:8px" />
+          <input type="text" id="userEmail" placeholder="Email" style="margin-bottom:10px" />
+          <button class="btn btn-primary" onclick="createUser()">+ User Banao</button>
+          <div class="resp-box" id="userResp"></div>
+        </div>
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+            <div class="card-label" style="margin:0">Saare Users</div>
+            <button class="btn btn-secondary btn-sm" onclick="loadUsers()">Load</button>
+          </div>
+          <div class="result-table-wrap" id="userList"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-label">New Product Banao</div>
+          <input type="text" id="productName" placeholder="Product naam" style="margin-bottom:8px" />
+          <input type="text" id="productPrice" placeholder="Price (e.g. 299.99)" style="margin-bottom:8px" />
+          <input type="text" id="productDesc" placeholder="Description (optional)" style="margin-bottom:10px" />
+          <button class="btn btn-primary" onclick="createProduct()">+ Product Banao</button>
+          <div class="resp-box" id="productResp"></div>
+        </div>
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+            <div class="card-label" style="margin:0">Saare Products</div>
+            <button class="btn btn-secondary btn-sm" onclick="loadProducts()">Load</button>
+          </div>
+          <div class="result-table-wrap" id="productList"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<script>
+const BASE = () => document.getElementById('baseUrl').value.replace(/\/$/, '');
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── Helper: fetch wrapper ────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(BASE() + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+function renderTable(data) {
+  if (!data || data.length === 0) return '<p style="color:var(--text3);font-size:13px;padding:8px">Koi data nahi mila</p>';
+  const keys = Object.keys(data[0]);
+  const ths = keys.map(k => `<th>${k}</th>`).join('');
+  const trs = data.map(row =>
+    '<tr>' + keys.map(k => `<td>${row[k] ?? '—'}</td>`).join('') + '</tr>'
+  ).join('');
+  return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+function showResp(id, msg, isError = false) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'resp-box ' + (isError ? 'error' : 'success');
+  el.style.display = 'block';
+}
+
+// ── Dashboard / Health ────────────────────────────────────────────────────────
+async function checkHealth() {
+  document.getElementById('stat-api').textContent = '...';
+  document.getElementById('stat-db').textContent = '...';
+  document.getElementById('stat-llm').textContent = '...';
+  document.getElementById('stat-tables').textContent = '...';
+
+  try {
+    const h = await api('/health');
+    document.getElementById('stat-api').innerHTML = `<span class="tag green">${h.api}</span>`;
+    document.getElementById('stat-db').innerHTML = h.database === 'connected'
+      ? `<span class="tag green">${h.database}</span>`
+      : `<span class="tag" style="background:rgba(248,113,113,0.15);color:var(--danger)">${h.database}</span>`;
+    document.getElementById('stat-llm').innerHTML = `<span class="tag amber">${h.llm}</span>`;
+  } catch(e) {
+    document.getElementById('stat-api').innerHTML = `<span style="color:var(--danger)">offline</span>`;
+  }
+
+  try {
+    const t = await api('/sql/tables');
+    document.getElementById('stat-tables').textContent = t.tables.length;
+  } catch(e) {
+    document.getElementById('stat-tables').textContent = '—';
+  }
+}
+
+checkHealth();
+
+// ── AI Chat ───────────────────────────────────────────────────────────────────
+function addMsg(text, role) {
+  const box = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+document.addEventListener('keydown', function(e) {
+  const inp = document.getElementById('chatInput');
+  if (document.activeElement === inp && e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
+
+async function sendChat() {
+  const inp = document.getElementById('chatInput');
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+
+  addMsg(msg, 'user');
+  const thinking = addMsg('Soch raha hoon...', 'ai thinking');
+  document.getElementById('chatSendBtn').disabled = true;
+
+  try {
+    const data = await api('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        message: msg,
+        conversation_id: document.getElementById('convId').value
+      })
+    });
+    thinking.remove();
+    addMsg(data.reply, 'ai');
+
+    // Save to history
+    api('/history/save', {
+      method: 'POST',
+      body: JSON.stringify({
+        conversation_id: document.getElementById('convId').value,
+        user_message: msg,
+        ai_response: data.reply
+      })
+    }).catch(() => {});
+  } catch(e) {
+    thinking.textContent = '❌ Error: ' + e.message;
+    thinking.classList.remove('thinking');
+  } finally {
+    document.getElementById('chatSendBtn').disabled = false;
+  }
+}
+
+// ── SQL Runner ────────────────────────────────────────────────────────────────
+function setQuery(q) {
+  document.getElementById('sqlQuery').value = q;
+}
+
+async function runSQL() {
+  const q = document.getElementById('sqlQuery').value.trim();
+  if (!q) return;
+  document.getElementById('sqlResultCard').style.display = 'none';
+
+  try {
+    const data = await api('/sql/execute', {
+      method: 'POST',
+      body: JSON.stringify({ query: q })
+    });
+    document.getElementById('sqlResult').innerHTML = renderTable(data.data);
+    document.getElementById('rowCount').textContent = data.row_count + ' rows';
+    document.getElementById('sqlResultCard').style.display = 'block';
+  } catch(e) {
+    document.getElementById('sqlResult').innerHTML = `<p style="color:var(--danger);font-size:13px">❌ ${e.message}</p>`;
+    document.getElementById('rowCount').textContent = 'Error';
+    document.getElementById('sqlResultCard').style.display = 'block';
+  }
+}
+
+async function loadTables() {
+  try {
+    const data = await api('/sql/tables');
+    const rows = data.tables.map(t => ({ table_name: t }));
+    document.getElementById('sqlResult').innerHTML = renderTable(rows);
+    document.getElementById('rowCount').textContent = data.tables.length + ' tables';
+    document.getElementById('sqlResultCard').style.display = 'block';
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function loadSchema() {
+  try {
+    const data = await api('/sql/schema');
+    document.getElementById('sqlResult').innerHTML =
+      `<pre style="font-size:13px;color:var(--accent2);white-space:pre-wrap;line-height:1.7">${data.schema}</pre>`;
+    document.getElementById('rowCount').textContent = 'schema';
+    document.getElementById('sqlResultCard').style.display = 'block';
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+// ── NL → SQL ──────────────────────────────────────────────────────────────────
+let lastGeneratedSQL = '';
+
+async function convertNLtoSQL() {
+  const nl = document.getElementById('nlInput').value.trim();
+  if (!nl) return;
+  document.getElementById('nlResult').style.display = 'none';
+  document.getElementById('nlRunWrap').style.display = 'none';
+  document.getElementById('nlSqlResultCard').style.display = 'none';
+
+  try {
+    const data = await api('/ai/nl-to-sql', {
+      method: 'POST',
+      body: JSON.stringify({ natural_language: nl })
+    });
+    lastGeneratedSQL = data.sql_query;
+    document.getElementById('nlResult').textContent = data.sql_query;
+    document.getElementById('nlResult').style.display = 'block';
+    document.getElementById('nlRunWrap').style.display = 'block';
+  } catch(e) {
+    document.getElementById('nlResult').textContent = '❌ Error: ' + e.message;
+    document.getElementById('nlResult').style.display = 'block';
+  }
+}
+
+async function runGeneratedSQL() {
+  if (!lastGeneratedSQL) return;
+  try {
+    const data = await api('/sql/execute', {
+      method: 'POST',
+      body: JSON.stringify({ query: lastGeneratedSQL })
+    });
+    document.getElementById('nlSqlResult').innerHTML = renderTable(data.data);
+    document.getElementById('nlSqlResultCard').style.display = 'block';
+  } catch(e) {
+    document.getElementById('nlSqlResult').innerHTML = `<p style="color:var(--danger);font-size:13px">❌ ${e.message}</p>`;
+    document.getElementById('nlSqlResultCard').style.display = 'block';
+  }
+}
+
+// ── File Upload ───────────────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('dragover');
+  uploadFiles(e.dataTransfer.files);
+}
+
+async function uploadFiles(files) {
+  if (!files.length) return;
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await fetch(BASE() + '/files/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail);
+      showResp('fileAnalysisResult', `✅ "${data.original_name}" upload ho gayi!\nURL: ${BASE()}${data.url}\nSize: ${data.size_mb} MB`);
+    } catch(e) {
+      showResp('fileAnalysisResult', '❌ Upload failed: ' + e.message, true);
+    }
+  }
+  loadFiles();
+}
+
+async function loadFiles() {
+  try {
+    const data = await api('/files/list');
+    const list = document.getElementById('fileList');
+    if (!data.files.length) {
+      list.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:1rem">Koi file nahi hai abhi</div>';
+      return;
+    }
+    list.innerHTML = data.files.map(f => `
+      <div class="file-item">
+        <div class="file-item-left">
+          <div class="file-icon">${getFileIcon(f.filename)}</div>
+          <div>
+            <div class="file-name">${f.filename}</div>
+            <div class="file-meta">${f.size_mb} MB</div>
+          </div>
+        </div>
+        <div class="file-item-right">
+          <button class="btn btn-secondary btn-sm" onclick="analyzeFile('${f.filename}')">🔍 Analyze</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteFile('${f.filename}')">🗑</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('fileList').innerHTML = `<p style="color:var(--danger);font-size:13px">Error: ${e.message}</p>`;
+  }
+}
+
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️';
+  if (ext === 'pdf') return '📄';
+  if (ext === 'csv') return '📊';
+  if (ext === 'json') return '📋';
+  if (ext === 'txt') return '📝';
+  return '📁';
+}
+
+async function analyzeFile(filename) {
+  showResp('fileAnalysisResult', `"${filename}" analyze ho rahi hai... ⏳`);
+  try {
+    const data = await api(`/files/analyze/${filename}`, { method: 'POST' });
+    showResp('fileAnalysisResult', `📊 AI Analysis — ${filename}\n\n${data.ai_analysis}`);
+  } catch(e) {
+    showResp('fileAnalysisResult', '❌ Error: ' + e.message, true);
+  }
+}
+
+async function deleteFile(filename) {
+  if (!confirm(`"${filename}" delete karein?`)) return;
+  try {
+    await fetch(BASE() + '/files/' + filename, { method: 'DELETE' });
+    loadFiles();
+    showResp('fileAnalysisResult', `✅ "${filename}" delete ho gayi`);
+  } catch(e) {
+    showResp('fileAnalysisResult', '❌ Delete failed: ' + e.message, true);
+  }
+}
+
+// ── Users / Products ──────────────────────────────────────────────────────────
+async function createUser() {
+  const name = document.getElementById('userName').value.trim();
+  const email = document.getElementById('userEmail').value.trim();
+  if (!name || !email) return showResp('userResp', '⚠️ Naam aur email dono chahiye', true);
+  try {
+    const data = await api('/users/', {
+      method: 'POST',
+      body: JSON.stringify({ name, email })
+    });
+    showResp('userResp', `✅ User "${data.name}" (ID: ${data.id}) bana!`);
+    document.getElementById('userName').value = '';
+    document.getElementById('userEmail').value = '';
+    loadUsers();
+  } catch(e) {
+    showResp('userResp', '❌ Error: ' + e.message, true);
+  }
+}
+
+async function loadUsers() {
+  try {
+    const data = await api('/users/');
+    document.getElementById('userList').innerHTML = renderTable(data);
+  } catch(e) {
+    document.getElementById('userList').innerHTML = `<p style="color:var(--danger);font-size:13px">Error: ${e.message}</p>`;
+  }
+}
+
+async function createProduct() {
+  const name = document.getElementById('productName').value.trim();
+  const price = parseFloat(document.getElementById('productPrice').value);
+  const description = document.getElementById('productDesc').value.trim() || null;
+  if (!name || isNaN(price)) return showResp('productResp', '⚠️ Naam aur price dono chahiye', true);
+  try {
+    const data = await api('/products/', {
+      method: 'POST',
+      body: JSON.stringify({ name, price, description })
+    });
+    showResp('productResp', `✅ Product "${data.name}" (₹${data.price}) bana!`);
+    document.getElementById('productName').value = '';
+    document.getElementById('productPrice').value = '';
+    document.getElementById('productDesc').value = '';
+    loadProducts();
+  } catch(e) {
+    showResp('productResp', '❌ Error: ' + e.message, true);
+  }
+}
+
+async function loadProducts() {
+  try {
+    const data = await api('/products/');
+    document.getElementById('productList').innerHTML = renderTable(data);
+  } catch(e) {
+    document.getElementById('productList').innerHTML = `<p style="color:var(--danger);font-size:13px">Error: ${e.message}</p>`;
+  }
+}
+</script>
+</body>
+</html>
